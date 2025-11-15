@@ -48,3 +48,19 @@ The system uses a relational database (PostgreSQL) containing the following tabl
 - Scalable database design  
 
 ---
+## 🗺️ ERD Diagram
+
+The following Entity Relationship Diagram (ERD) represents the database structure of the E-Commerce system.  
+It illustrates the main entities and the relationships between them, including categories, products, customers, orders, and order details.
+
+### **📌 ERD Overview**
+- **Category → Product**: One category can have many products.  
+- **Customer → Orders**: One customer can place multiple orders.  
+- **Order → Order_details**: Each order contains multiple order items.  
+- **Product → Order_details**: A product can appear in multiple order items.
+
+### **📷 ERD Diagram**
+![ERD Diagram](./assets/erd.png)
+
+
+
