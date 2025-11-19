@@ -1,5 +1,5 @@
 -- Create Category table
-CREATE TABLE Category (
+CREATE TABLE IF NOT E Category (
     category_id SERIAL PRIMARY KEY,
     category_name VARCHAR(100) NOT NULL
 );
@@ -24,7 +24,7 @@ CREATE TABLE Customer (
 );
 
 -- Create Orders table
-CREATE TABLE Orders (
+CREATE TABLE Order (
     order_id SERIAL PRIMARY KEY,
     customer_id INT REFERENCES Customer(customer_id),
     order_date TIMESTAMP DEFAULT NOW(),
@@ -32,8 +32,8 @@ CREATE TABLE Orders (
 );
 
 -- Create OrderItem table
-CREATE TABLE OrderItem (
-    order_item_id SERIAL PRIMARY KEY,
+CREATE TABLE Order_details (
+    order_details_id SERIAL PRIMARY KEY,
     order_id INT REFERENCES Orders(order_id),
     product_id INT REFERENCES Product(product_id),
     quantity INT NOT NULL,
