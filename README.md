@@ -1,66 +1,197 @@
 # 🛒 E-Commerce Platform
 
-A simple and efficient **E-Commerce system** designed to help people **find and buy products easily**.  
-The platform organizes products into categories, allows customers to browse items, and supports placing orders smoothly.
+# Create Database — Schema Description
+
+The database represents a simple e-commerce system for managing products, customers, and orders.
+
+It consists of five main entities:
 
 ---
 
-## ✨ Overview
+## Entities
 
-This project represents a basic backend structure for an online store.  
-It provides essential features for any e-commerce application:
+### 1. Category
 
-- Browse products within categories  
-- View product details (name, description, price, stock)  
-- Register customers  
-- Create orders  
-- Store detailed order items  
+* `category_id` (PK)
+* `category_name`
 
----
-
-## 🎯 Purpose
-
-The main goal of this project is to:
-
-- Help users easily **find anything they need**  
-- Provide a simple and clean database model  
-- Give developers a solid starting point for building a real e-commerce platform  
+Stores product categories such as electronics, clothes, or accessories.
+One category can contain multiple products.
 
 ---
 
-## 🗄️ Database Schema
+### 2. Product
 
-The system uses a relational database (PostgreSQL) containing the following tables:
+* `product_id` (PK)
+* `category_id` (FK → Category.category_id)
+* `name`
+* `description`
+* `price`
+* `stock`
 
-- **Category** — Product categories  
-- **Product** — Item details  
-- **Customer** — Customer information  
-- **Orders** — Order records  
-- **OrderItem** — The products included in each order  
+Represents the items available for sale. Each product belongs to one category.
+
+---
+
+### 3. Customer
+
+* `customer_id` (PK)
+* `first_name`
+* `last_name`
+* `email` (UNIQUE)
+* `password`
+
+Contains customer information. A customer can place multiple orders.
 
 ---
 
-## 📌 Features
+### 4. Orders
 
-- Organized product structure  
-- Customer management  
-- Order creation  
-- Scalable database design  
+* `order_id` (PK)
+* `customer_id` (FK → Customer.customer_id)
+* `order_date`
+* `total_amount`
+
+Represents a customer’s purchase transaction. Each order can contain multiple products.
 
 ---
-## 🗺️ ERD Diagram
 
-The following Entity Relationship Diagram (ERD) represents the database structure of the E-Commerce system.  
-It illustrates the main entities and the relationships between them, including categories, products, customers, orders, and order details.
+### 5. Order_Details
 
-### **📌 ERD Overview**
-- **Category → Product**: One category can have many products.  
-- **Customer → Orders**: One customer can place multiple orders.  
-- **Order → Order_details**: Each order contains multiple order items.  
-- **Product → Order_details**: A product can appear in multiple order items.
+* `order_detail_id` (PK)
+* `order_id` (FK → Orders.order_id)
+* `product_id` (FK → Product.product_id)
+* `quantity`
+* `unit_price`
 
-### **📷 ERD Diagram**
+Junction table connecting orders with products. Stores each product line in an order, including quantity and unit price. Resolves the many-to-many relationship between Orders and Products.
+
+---
+
+## SQL Schema
+
+```sql
+CREATE TABLE IF NOT EXISTS Category (
+    category_id SERIAL PRIMARY KEY,
+    category_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Product (
+    product_id SERIAL PRIMARY KEY,
+    category_id INT NOT NULL REFERENCES Category(category_id),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price NUMERIC(10,2) NOT NULL,
+    stock INT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Customer (
+    customer_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    email VARCHAR(150) UNIQUE NOT NULL,
+    password VARCHAR(200) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Orders (
+    order_id SERIAL PRIMARY KEY,
+    customer_id INT NOT NULL REFERENCES Customer(customer_id),
+    order_date TIMESTAMP DEFAULT NOW(),
+    total_amount NUMERIC(10,2) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Order_Details (
+    order_detail_id SERIAL PRIMARY KEY,
+    order_id INT NOT NULL REFERENCES Orders(order_id),
+    product_id INT NOT NULL REFERENCES Product(product_id),
+    quantity INT NOT NULL,
+    unit_price NUMERIC(10,2) NOT NULL
+);
+```
+
+---
+
+## Entity Relationships
+
+1️⃣ **Category → Product** — One-to-Many
+
+* A category can have multiple products.
+* Each product belongs to one category.
+
+2️⃣ **Customer → Orders** — One-to-Many
+
+* One customer can place many orders.
+* Each order belongs to a single customer.
+
+3️⃣ **Order ↔ Product (via Order_Details)** — Many-to-Many
+
+* An order can contain multiple products.
+* A product can appear in multiple orders.
+* `Order_Details` stores this relationship with quantity and unit price.
+
+4️⃣ **Order → Order_Details** — One-to-Many
+
+* Each order consists of multiple order details.
+
+5️⃣ **Product → Order_Details** — One-to-Many
+
+* A product can appear in multiple order detail records.
+
+---
+
+## ERD Diagram
+
 ![ERD Diagram](./assets/erd.png)
 
+---
 
+## Sample Queries
 
+```sql
+-- Get order details for a specific date
+SELECT od.unit_price, o.order_date
+FROM Orders o
+INNER JOIN Order_Details od ON o.order_id = od.order_id
+WHERE o.order_date = '2003-02-02';
+
+-- Total quantity per product for Feb 2003
+SELECT od.product_id AS od_product,
+       SUM(od.quantity) AS total_quantity
+FROM Order_Details od
+JOIN Orders o ON od.order_id = o.order_id
+WHERE EXTRACT(MONTH FROM o.order_date) = 2
+  AND EXTRACT(YEAR FROM o.order_date) = 2003
+GROUP BY od.product_id
+ORDER BY total_quantity DESC;
+
+-- Customers with orders over $500 in the past month
+SELECT c.first_name || ' ' || c.last_name AS customer_name,
+       SUM(o.total_amount) AS total_order_amount
+FROM Customer c
+JOIN Orders o ON c.customer_id = o.customer_id
+WHERE o.order_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
+  AND o.order_date < date_trunc('month', CURRENT_DATE)
+GROUP BY customer_name
+HAVING SUM(o.total_amount) > 500
+ORDER BY total_order_amount DESC;
+```
+
+---
+
+## Denormalization Strategies
+
+1. **Add redundant fields in Orders**
+
+* Store customer details (name, email) directly in Orders for faster reporting.
+* Trade-off: Redundancy and need to update Orders when customer info changes.
+
+2. **Create summary/aggregate tables**
+
+* Example: `customer_orders_summary` with total orders and total amount.
+* Trade-off: More complex insert/update logic.
+
+3. **Pre-join frequently accessed data**
+
+* Create denormalized tables combining Customers and Orders for dashboards or reports.
+
+**Summary:** Denormalization improves read/query performance but increases storage and complexity in writes/updates.
