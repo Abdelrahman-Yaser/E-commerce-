@@ -25,3 +25,13 @@ INSERT INTO Order_Details (order_id, product_id, quantity, unit_price) VALUES
 (1, 1, 1, 1200.00),
 (1, 2, 1, 150.00),
 (2, 3, 1, 20.00);
+
+SELECT   o.order_id,
+    o.order_date,
+    o.total_amount,
+    c.customer_id,
+    c.first_name,
+    c.last_name FROM Orders o 
+JOIN Customer c ON o.customer_id = o.customer_id
+GROUP BY order_id 
+ORDER BY o.order_date LIMIT 1000;

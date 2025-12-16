@@ -24,8 +24,8 @@ One category can contain multiple products.
 
 * `product_id` (PK)
 * `category_id` (FK → Category.category_id)
-* `name`
-* `description`
+* `product_name`
+* `product_description`
 * `price`
 * `stock`
 
@@ -79,8 +79,8 @@ CREATE TABLE IF NOT EXISTS Category (
 CREATE TABLE IF NOT EXISTS Product (
     product_id SERIAL PRIMARY KEY,
     category_id INT NOT NULL REFERENCES Category(category_id),
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
+    product_name VARCHAR(100) NOT NULL,
+    product_description TEXT,
     price NUMERIC(10,2) NOT NULL,
     stock INT NOT NULL
 );
@@ -195,3 +195,111 @@ ORDER BY total_order_amount DESC;
 * Create denormalized tables combining Customers and Orders for dashboards or reports.
 
 **Summary:** Denormalization improves read/query performance but increases storage and complexity in writes/updates.
+---
+
+## Task 5: Retrieve Total Number of Products in Each Category
+
+In this task, we are dealing with a large amount of data. The goal is to calculate the number of products available within each specific category.
+
+We analyzed two approaches to solve this:
+
+1.  **Using INNER JOIN:** This method only returns categories that strictly contain products. If a category is empty (has no products), it will be excluded from the results, which might lead to incomplete data reporting.
+    
+2.  **Using LEFT JOIN (Selected Approach):** This is the preferred method. It returns **all** categories from the `Category` table. If a category has no products, it will still appear in the result with a count of `0`.
+
+### Solution Query:
+```sql
+SELECT c.category_name, COUNT(p.product_id)
+FROM Category c
+LEFT JOIN Product p ON c.category_id = p.category_id
+GROUP BY c.category_name;
+
+### Performance Analysis (Task 5)
+
+I used `EXPLAIN ANALYZE` to measure the execution time before and after optimization.
+
+**Results:**
+* **Before Indexing:** Execution Time ≈ 6.906 ms
+* **After Indexing:** Execution Time ≈ 6.670 ms
+
+```sql
+CREATE INDEX idx_product_category ON Product(category_id);
+```
+
+
+### Observation
+The difference is not significant in this case because the dataset size (10,000 rows) is relatively small.
+With much larger datasets, the performance gap would be more noticeable.
+
+### Optimization Technique
+A B-Tree Index was created (PostgreSQL default).
+It is efficient for JOIN operations and equality checks (e.g., WHERE x = y).
+
+---
+## Task 6: SQL Query to Find Top Customers by Total Spending
+---
+### Solution Query:
+
+```sql
+SELECT c.customer_id,
+    c.first_name,
+    c.last_name,
+    SUM(o.total_amount) AS total_spent
+FROM Customer c
+JOIN Orders o ON c.customer_id = o.customer_id
+GROUP BY c.customer_id, c.first_name, c.last_name
+ORDER BY total_spent DESC
+LIMIT 10;
+```
+
+---
+## Task 7: SQL Query to Retrieve Most Recent Orders with Customer Information
+### Solution Query:
+
+```sql
+SELECT o.order_id,
+    o.order_date,
+    o.total_amount,
+    c.customer_id,
+    c.first_name,
+    c.last_name
+FROM Orders o
+JOIN Customer c ON o.customer_id = c.customer_id
+ORDER BY o.order_date DESC
+LIMIT 1000;
+```
+
+
+
+## Task 8:SQL Query to List Products with Low Stock Quantities of less than 10 quantites?
+### Solution Query:
+```sql
+SELECT
+    p.product_id,
+    p.name AS product_name
+FROM
+    Product p
+WHERE
+    p.stock < 10
+ORDER BY
+    p.stock ASC;
+ ```
+## Task 9 :Write SQL Query to Calculate Revenue Generated from Each Product Category?
+### Solution Query:
+```sql 
+SELECT c.category_name, SUM(p.price *p.stock) AS total_revenue
+FROM Category c
+LEFT JOIN Product p ON c.category_id = p.category_id
+GROUP BY c.category_name
+ORDER BY  total_revenue DESC;
+### Performance Analysis (Task 9)
+CREATE INDEX idx_product_revenue ON Product ((price * stock))
+ you maaust used  ((price * stock)) double parentheses
+
+I used `EXPLAIN ANALYZE` to measure the execution time before and after optimization.
+ **Results:**
+* **Before Indexing:** Execution Time ≈ 11.227 ms
+* **After Indexing:** Execution Time ≈ 10.283 ms
+
+You can use a "MATERIALIZED VIEW" if the data does not change frequently, but in this case,
+ the product stock changes constantly, 

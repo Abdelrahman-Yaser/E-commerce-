@@ -41,3 +41,10 @@ CREATE TABLE IF NOT EXISTS Order_Details (
 );
 
 
+
+SELECT c.category_name, SUM(p.price) AS total_revenue
+FROM Category c
+LEFT JOIN Product p ON c.category_id = p.category_id
+GROUP BY c.category_name;
+ORDER BY  total_revenue DESC;
+ 
