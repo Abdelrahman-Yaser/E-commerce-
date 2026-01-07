@@ -304,28 +304,25 @@ I used `EXPLAIN ANALYZE` to measure the execution time before and after optimiza
 CREATE INDEX idx_product_category ON Product(category_id);
 ```
 <!--task table  -->
-## 5. Revenue Generated per Product Category
+## 5. Revenue Generated per Product Category:
+| Simple Query | Execution time before optimization | Optimization Technique | Rewrite Query | Execution time after optimization |
+| ---- | ---- | ----- | ----- | ----- |
+|  SELECT c.category_name, 
+COUNT(p.product_id)
+ FROM Category c
+LEFT JOIN 
+Product p ON c.category_id = p.category_id
+GROUP BY c.category_name; |
+ Execution Time ≈ 6.906 ms|
+  CREATE INDEX idx_product_category 
+  ON Product(category_id); |  SELECT c.category_name,
+   COUNT(p.product_id)
+FROM Category c
+LEFT JOIN
+ Product p ON c.category_id = p.category_id
+GROUP BY c.category_name; |
+ Execution Time ≈ 6.670 ms |
 
-| Simple Query | Execution Time (Before Optimization) | Optimization Technique | Rewritten Query | Execution Time (After Optimization) |
-|-------------|--------------------------------------|------------------------|------------------|-------------------------------------|
-| ```sql
-SELECT c.category_name,
-       COUNT(p.product_id)
-FROM Category c
-LEFT JOIN Product p
-  ON c.category_id = p.category_id
-GROUP BY c.category_name;
-``` | ≈ 6.906 ms | ```sql
-CREATE INDEX idx_product_category
-ON Product(category_id);
-``` | ```sql
-SELECT c.category_name,
-       COUNT(p.product_id)
-FROM Category c
-LEFT JOIN Product p
-  ON c.category_id = p.category_id
-GROUP BY c.category_name;
-``` | ≈ 6.670 ms |
 ---
 
 ## Task 6: SQL Query to Find Top Customers by Total Spending
@@ -396,30 +393,29 @@ I used `EXPLAIN ANALYZE` to measure the execution time before and after optimiza
  **Results:**
 * **Before Indexing:** Execution Time ≈ 11.227 ms
 * **After Indexing:** Execution Time ≈ 10.283 ms
+
 You can use a "MATERIALIZED VIEW" if the data does not change frequently, but in this case,
  the product stock changes constantly, 
+---
 
-## 9. Write SQL Query to Calculate Revenue Generated from Each Product Category
 
-| Simple Query | Execution Time (Before Optimization) | Optimization Technique | Rewritten Query | Execution Time (After Optimization) |
-|-------------|--------------------------------------|------------------------|------------------|-------------------------------------|
-| ```sql
-SELECT c.category_name,
-       SUM(p.price * p.stock) AS total_revenue
-FROM Category c
-LEFT JOIN Product p
-  ON c.category_id = p.category_id
+
+## 9. Revenue Generated per Product Category:
+| Simple Query | Execution time before optimization | Optimization Technique | Rewrite Query | Execution time after optimization |
+| ---- | ---- | ----- | ----- | ----- |
+|   SELECT c.category_name,
+ SUM(p.price *p.stock) 
+ AS total_revenue FROM Category c
+ LEFT JOIN
+  Product p ON c.category_id = p.category_id
 GROUP BY c.category_name
-ORDER BY total_revenue DESC;
-``` | ≈ 11.227 ms | ```sql
-CREATE INDEX idx_product_revenue
-ON Product ((price * stock));
-``` | ```sql
-SELECT c.category_name,
-       SUM(p.price * p.stock) AS total_revenue
+ORDER BY  total_revenue DESC;|
+ Execution Time ≈ 11.227 ms|
+CREATE INDEX idx_product_revenue ON Product ((price * stock))
+|  
+SELECT c.category_name, SUM(p.price *p.stock) AS total_revenue
 FROM Category c
-LEFT JOIN Product p
-  ON c.category_id = p.category_id
+LEFT JOIN Product p ON c.category_id = p.category_id
 GROUP BY c.category_name
-ORDER BY total_revenue DESC;
-``` | ≈ 10.283 ms |
+ORDER BY  total_revenue DESC; | 
+Execution Time ≈ 10.283 ms |
