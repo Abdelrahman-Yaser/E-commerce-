@@ -306,22 +306,8 @@ CREATE INDEX idx_product_category ON Product(category_id);
 <!--task table  -->
 ## 5. Revenue Generated per Product Category:
 | Simple Query | Execution time before optimization | Optimization Technique | Rewrite Query | Execution time after optimization |
-| ---- | ---- | ----- | ----- | ----- |
-|  SELECT c.category_name, 
-COUNT(p.product_id)
- FROM Category c
-LEFT JOIN 
-Product p ON c.category_id = p.category_id
-GROUP BY c.category_name; |Execution Time ≈ 6.906 ms|
-  CREATE INDEX idx_product_category 
-  ON Product(category_id); |  SELECT c.category_name,
-   COUNT(p.product_id)
-FROM Category c
-LEFT JOIN
- Product p ON c.category_id = p.category_id
-GROUP BY c.category_name; |Execution Time ≈ 6.670 ms |
-
----
+| :--- | :--- | :--- | :--- | :--- |
+| `SELECT c.category_name, COUNT(p.product_id) FROM Category c LEFT JOIN Product p ON c.category_id = p.category_id GROUP BY c.category_name;` | ≈ 6.906 ms | **Indexing:** <br> `CREATE INDEX idx_product_category ON Product(category_id);` | `SELECT c.category_name, COUNT(p.product_id) FROM Category c LEFT JOIN Product p ON c.category_id = p.category_id GROUP BY c.category_name;` | ≈ 6.670 ms |
 
 ## Task 6: SQL Query to Find Top Customers by Total Spending
 ### Solution Query:
@@ -401,8 +387,7 @@ You can use a "MATERIALIZED VIEW" if the data does not change frequently, but in
 ## 9. Revenue Generated per Product Category:
 | Simple Query | Execution time before optimization | Optimization Technique | Rewrite Query | Execution time after optimization |
 | ---- | ---- | ----- | ----- | ----- |
-|   SELECT c.category_name,
- SUM(p.price *p.stock) 
+|   SELECT c.category_name,SUM(p.price *p.stock) 
  AS total_revenue FROM Category c
  LEFT JOIN
   Product p ON c.category_id = p.category_id
