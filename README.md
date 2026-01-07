@@ -3,7 +3,6 @@
 # Create Database — Schema Description
 
 The database represents a simple e-commerce system for managing products, customers, and orders.
-
 It consists of five main entities:
 
 ---
@@ -107,9 +106,31 @@ CREATE TABLE IF NOT EXISTS Order_Details (
     quantity INT NOT NULL,
     unit_price NUMERIC(10,2) NOT NULL
 );
+* create a sale hitory
+
+CREATE TABLE Sale_History (
+    sale_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT NOT NULL,
+    customer_id INT NOT NULL,
+    product_id INT NOT NULL,
+    order_date DATETIME NOT NULL,
+    quantity INT NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_sale_order
+        FOREIGN KEY (order_id) REFERENCES `Order`(order_id),
+
+    CONSTRAINT fk_sale_customer
+        FOREIGN KEY (customer_id) REFERENCES Customer(customer_id),
+
+    CONSTRAINT fk_sale_product
+        FOREIGN KEY (product_id) REFERENCES Product(product_id)
+);
 ```
 
 ---
+
 
 ## Entity Relationships
 
@@ -174,8 +195,66 @@ WHERE o.order_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
 GROUP BY customer_name
 HAVING SUM(o.total_amount) > 500
 ORDER BY total_order_amount DESC;
-```
+---
+### Observation
+The difference is not significant in this case because the dataset size (10,000 rows) is relatively small.
+With much larger datasets, the performance gap would be more noticeable.
 
+### Optimization Technique
+A B-Tree Index was created (PostgreSQL default).
+It is efficient for JOIN operations and equality checks (e.g., WHERE x = y).
+
+---
+
+## task session "5"
+* Automatically Record Sales History on New Order Creation
+```sql
+CREATE OR REPLACE FUNCTION sync_sale_history()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO sale_history (
+        order_id,
+        order_date,
+        customer_id,
+        product_id,
+        quantity,
+        total_amount
+    )
+    SELECT
+        NEW.order_id,
+        o.order_date,
+        o.customer_id,
+        NEW.product_id,
+        NEW.quantity,
+        NEW.quantity * NEW.unit_price
+    FROM orders o
+    WHERE o.order_id = NEW.order_id;
+
+    RETURN NEW;
+END;
+$$; 
+ * in the product table
+Write a transaction query to lock the field quantity with product id = 211 from being updated
+Write a transaction query to lock row with product id = 211 from being updated
+``` sql 
+'1'
+BEGIN 
+SELECT quantity
+ FROM product
+ WHERE product_id = 211
+ FOR UPDATE;
+ COMMIT
+ 
+'2'
+BEGIN 
+SELECT *
+ FROM product
+ WHERE product_id = 211
+ FOR UPDATE;
+ COMMIT
+```
 ---
 
 ## Denormalization Strategies
@@ -194,8 +273,7 @@ ORDER BY total_order_amount DESC;
 
 * Create denormalized tables combining Customers and Orders for dashboards or reports.
 
-**Summary:** Denormalization improves read/query performance but increases storage and complexity in writes/updates.
----
+** Summary:** Denormalization improves read/query performance but increases storage and complexity in writes/updates.
 
 ## Task 5: Retrieve Total Number of Products in Each Category
 
@@ -205,7 +283,7 @@ We analyzed two approaches to solve this:
 
 1.  **Using INNER JOIN:** This method only returns categories that strictly contain products. If a category is empty (has no products), it will be excluded from the results, which might lead to incomplete data reporting.
     
-2.  **Using LEFT JOIN (Selected Approach):** This is the preferred method. It returns **all** categories from the `Category` table. If a category has no products, it will still appear in the result with a count of `0`.
+2 **Using LEFT JOIN (Selected Approach):** This is the preferred method. It returns **all** categories from the `Category` table. If a category has no products, it will still appear in the result with a count of `0`.
 
 ### Solution Query:
 ```sql
@@ -225,22 +303,25 @@ I used `EXPLAIN ANALYZE` to measure the execution time before and after optimiza
 ```sql
 CREATE INDEX idx_product_category ON Product(category_id);
 ```
-
-
-### Observation
-The difference is not significant in this case because the dataset size (10,000 rows) is relatively small.
-With much larger datasets, the performance gap would be more noticeable.
-
-### Optimization Technique
-A B-Tree Index was created (PostgreSQL default).
-It is efficient for JOIN operations and equality checks (e.g., WHERE x = y).
+<!--task table  -->
+## 5. Revenue Generated per Product Category:
+| Simple Query | Execution time before optimization | Optimization Technique | Rewrite Query | Execution time after optimization |
+| ---- | ---- | ----- | ----- | ----- |
+|  ``` SELECT c.category_name, COUNT(p.product_id)
+FROM Category c
+LEFT JOIN Product p ON c.category_id = p.category_id
+GROUP BY c.category_name; ```| Execution Time ≈ 6.906 ms| CREATE INDEX idx_product_category ON Product(category_id); | ``` SELECT c.category_name, COUNT(p.product_id)
+FROM Category c
+LEFT JOIN Product p ON c.category_id = p.category_id
+GROUP BY c.category_name; ```| | Execution Time ≈ 6.670 ms |
 
 ---
+
 ## Task 6: SQL Query to Find Top Customers by Total Spending
----
 ### Solution Query:
 
 ```sql
+
 SELECT c.customer_id,
     c.first_name,
     c.last_name,
@@ -251,7 +332,6 @@ GROUP BY c.customer_id, c.first_name, c.last_name
 ORDER BY total_spent DESC
 LIMIT 10;
 ```
-
 ---
 ## Task 7: SQL Query to Retrieve Most Recent Orders with Customer Information
 ### Solution Query:
@@ -268,10 +348,9 @@ JOIN Customer c ON o.customer_id = c.customer_id
 ORDER BY o.order_date DESC
 LIMIT 1000;
 ```
-
-
-
+<!-- task8 -->
 ## Task 8:SQL Query to List Products with Low Stock Quantities of less than 10 quantites?
+
 ### Solution Query:
 ```sql
 SELECT
@@ -284,7 +363,11 @@ WHERE
 ORDER BY
     p.stock ASC;
  ```
+ ---
+
+ <!--task9  -->
 ## Task 9 :Write SQL Query to Calculate Revenue Generated from Each Product Category?
+
 ### Solution Query:
 ```sql 
 SELECT c.category_name, SUM(p.price *p.stock) AS total_revenue
@@ -292,10 +375,12 @@ FROM Category c
 LEFT JOIN Product p ON c.category_id = p.category_id
 GROUP BY c.category_name
 ORDER BY  total_revenue DESC;
+```
 ### Performance Analysis (Task 9)
+```sql
 CREATE INDEX idx_product_revenue ON Product ((price * stock))
  you maaust used  ((price * stock)) double parentheses
-
+```
 I used `EXPLAIN ANALYZE` to measure the execution time before and after optimization.
  **Results:**
 * **Before Indexing:** Execution Time ≈ 11.227 ms
@@ -303,3 +388,26 @@ I used `EXPLAIN ANALYZE` to measure the execution time before and after optimiza
 
 You can use a "MATERIALIZED VIEW" if the data does not change frequently, but in this case,
  the product stock changes constantly, 
+```
+---
+
+
+
+<!--task table  -->
+## 9. Revenue Generated per Product Category:
+| Simple Query | Execution time before optimization | Optimization Technique | Rewrite Query | Execution time after optimization |
+| ---- | ---- | ----- | ----- | ----- |
+|  ``` SELECT c.category_name, SUM(p.price *p.stock) AS total_revenue FROM Category c
+ LEFT JOIN Product p ON c.category_id = p.category_id
+GROUP BY c.category_name
+ORDER BY  total_revenue DESC;
+```| Execution Time ≈ 11.227 ms|```
+CREATE INDEX idx_product_revenue ON Product ((price * stock))
+ you maaust used  ((price * stock)) double parentheses
+``` | ``` 
+SELECT c.category_name, SUM(p.price *p.stock) AS total_revenue
+FROM Category c
+LEFT JOIN Product p ON c.category_id = p.category_id
+GROUP BY c.category_name
+ORDER BY  total_revenue DESC;
+``` | Execution Time ≈ 10.283 ms |
