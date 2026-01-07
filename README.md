@@ -275,6 +275,8 @@ SELECT *
 
 ** Summary:** Denormalization improves read/query performance but increases storage and complexity in writes/updates.
 
+## task section 7
+
 ## Task 5: Retrieve Total Number of Products in Each Category
 
 In this task, we are dealing with a large amount of data. The goal is to calculate the number of products available within each specific category.
